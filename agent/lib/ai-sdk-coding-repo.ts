@@ -1,6 +1,7 @@
 import type { SandboxSession } from "eve/sandbox";
 
-export const aiSdkCodingSandboxBootstrapHash = "vercel-ai-shallow-clone-v1";
+export const aiSdkCodingSandboxBootstrapHash =
+  "vercel-ai-shallow-clone-safe-directory-v3";
 
 export async function bootstrapAiSdkCodingRepo({
   session,
@@ -9,6 +10,8 @@ export async function bootstrapAiSdkCodingRepo({
   readonly session: SandboxSession;
   readonly abortSignal?: AbortSignal;
 }): Promise<void> {
+  await trustSandboxWorkdirForGit({ session, abortSignal });
+
   const cloneResult = await session.run({
     command:
       "test -d .git || git clone --depth 1 https://github.com/vercel/ai.git .",
@@ -63,6 +66,24 @@ export async function refreshAiSdkCodingRepo({
       session,
       abortSignal,
     });
+  }
+}
+
+async function trustSandboxWorkdirForGit({
+  session,
+  abortSignal,
+}: {
+  readonly session: SandboxSession;
+  readonly abortSignal?: AbortSignal;
+}): Promise<void> {
+  const result = await session.run({
+    command: 'git config --global --add safe.directory "$(pwd)"',
+    abortSignal,
+  });
+  if (result.exitCode !== 0) {
+    throw new Error(
+      `Failed to configure trusted Git workspace (exit ${result.exitCode}): ${result.stderr}`,
+    );
   }
 }
 
